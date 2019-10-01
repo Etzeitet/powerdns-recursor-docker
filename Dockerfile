@@ -13,6 +13,4 @@ RUN sed -i -e "s/disable-syslog=/c\disable-syslog=yes/" "${CONFIG}" && \
     sed -i -e "s/setuid=/c\setuid=pdns-recursor/" "${CONFIG}" && \
     sed -i -e "s/setgid=/c\setgid=pdns-recursor/" "${CONFIG}"
 
-
-
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
