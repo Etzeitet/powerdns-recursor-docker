@@ -59,7 +59,6 @@ main() {
     # treat everything except "--" as exec cmd
     [[ ${1:0:2} != "--" ]] && exec "${@}"
 
-
     check_env
 
     if [[ -n ${DNS_AUTH_SERVICE} ]]; then
