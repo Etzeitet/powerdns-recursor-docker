@@ -1,3 +1,5 @@
+# functions.sh
+
 get_ip_list_from_service() {
     local SERVICE_NAME="${1}"
     local SEPARATOR="${2:-;}"
