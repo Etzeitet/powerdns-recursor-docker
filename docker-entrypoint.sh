@@ -2,13 +2,13 @@
 set -e
 
 check_env() {
-    if [[ -z ${DNS_AUTH_SERVICE} ]] && [[ -z ${DNS_AUTH_IPS} ]]; then
-        echo "One of DNS_AUTH_SERVICE or DNS_AUTH_IPS environment variables must be set."
+    if [[ -z ${DNS_AUTH_SERVICE} ]] && [[ -z ${DNS_AUTH_IP_ADDRESSES} ]]; then
+        echo "One of DNS_AUTH_SERVICE or DNS_AUTH_IP_ADDRESSES environment variables must be set."
         exit 1
     fi
 
-    if [[ -z ${DNS_PIHOLE_SERVICE} ]] && [[ -z ${DNS_PIHOLE_IPS} ]]; then
-        echo "One of DNS_PIHOLE_SERVICE or DNS_PIHOLE_IPS environment variables must be set."
+    if [[ -z ${DNS_FORWARDER_SERVICE} ]] && [[ -z ${DNS_FORWARDER_IP_ADDRESSES} ]]; then
+        echo "One of DNS_FORWARDER_SERVICE or DNS_FORWARDER_IP_ADDRESSES environment variables must be set."
         exit 1
     fi
 
@@ -21,8 +21,8 @@ check_env() {
 get_ip_list_from_service() {
     SERVICE_NAME="${1}"
     SEPARATOR="${2:-;}"
-    
-    IP_LIST="$(getent ahostsv4 tasks.${SERVICE_NAME}|awk '/STREAM/ {print $1}'|tr '\n' "${SEPARATOR}")"
+
+    IP_LIST="$(getent ahostsv4 tasks."${SERVICE_NAME}"|awk '/STREAM/ {print $1}'|tr '\n' "${SEPARATOR}")"
     echo "${IP_LIST::-1}"
 }
 
@@ -31,9 +31,9 @@ build_forwarder_config() {
     local FORWARDERS="${2}"
 
     IFS=", "  read -r -a zones <<< "${ZONES_LIST}"
-    
+
     CONFIG=""
-    for zone in ${zones[@]}; do
+    for zone in "${zones[@]}"; do
         CONFIG="${CONFIG}${zone}=${FORWARDERS},"
     done
 
@@ -62,22 +62,22 @@ main() {
     check_env
 
     if [[ -n ${DNS_AUTH_SERVICE} ]]; then
-        FORWARDERS="$(get_ip_list_from_service ${DNS_AUTH_SERVICE})"
-    elif [[ -n ${DNS_AUTH_IPS} ]]; then
-        FORWARDERS="${DNS_AUTH_IPS}"
+        FORWARDERS="$(get_ip_list_from_service "${DNS_AUTH_SERVICE}")"
+    elif [[ -n ${DNS_AUTH_IP_ADDRESSES} ]]; then
+        FORWARDERS="${DNS_AUTH_IP_ADDRESSES}"
     fi
 
-    if [[ -n ${DNS_PIHOLE_SERVICE} ]]; then
-        PIHOLE_IP_LIST="$(get_ip_list_from_service ${DNS_PIHOLE_SERVICE})"
-    elif [[ -n ${DNS_PIHOLE_IPS} ]]; then
-        PIHOLE_IP_LIST="${DNS_PIHOLE_IPS}"
+    if [[ -n ${DNS_FORWARDER_SERVICE} ]]; then
+        FORWARDER_IP_LIST="$(get_ip_list_from_service "${DNS_FORWARDER_SERVICE}")"
+    elif [[ -n ${DNS_FORWARDER_IP_ADDRESSES} ]]; then
+        FORWARDER_IP_LIST="${DNS_FORWARDER_IP_ADDRESSES}"
     fi
 
     FORWARDER_CONFIG="$(build_forwarder_config "${DNS_AUTH_ZONES}" "${FORWARDERS}")"
-    RECURSOR_CONFIG="$(build_forwarder_config "." "${PIHOLE_IP_LIST}")"
+    RECURSOR_CONFIG="$(build_forwarder_config "." "${FORWARDER_IP_LIST}")"
 
     update_recursor_forwarder_config "${FORWARDER_CONFIG}" "${RECURSOR_CONFIG}"
-    
+
     trap "rec_control quit" SIGHUP SIGINT SIGTERM
 
     /usr/local/sbin/pdns_recursor "$@" &

@@ -2,11 +2,23 @@
 
 A powerdns-recursor docker image based on tcely/powerdns-recursor image.
 
-This new container is designed for acting as a DNS recursor between an authoritative DNS server and a Pi-Hole instance.
+Note: `v2.0.0` is the latest version, but is functionally equivalent to `v1.0.6`.
+However, some Env Vars have been renamed hence the bump to `v2.0.0`.
 
-In my DNS setup I have a PowerDNS Authorative Server, serving DNS for my private domains. 
-I also have a Pi-Hole instance used for blocking unsavoury domains when requesting DNS for public domains. This container
-updates the `forward-zones` and `forward-zones-recurse` options in `/etc/pdns-recursor/recursor.conf` to achieve this.
+This new container is designed for acting as a DNS recursor between an authoritative
+DNS server and a forwarding or recursive DNS server. This container originally was
+intended for using Pi-Hole as the forwarding server. However, I have made it more
+generic. The functionality is the same. The only change is the name of some of the
+environment variables.
+
+This container configures PowerDNS Recursor to forward specific domains to a local
+authoritative server and everything else to another recursive DNS server. It does
+this by setting the `forward-zones` and `forward-zones-recurse` options in
+`/etc/pdns-recursor/recursor.conf` to achieve this.
+
+A DNS server such as PowerDNS Auth or Bind can easily act as an authoritative server
+by itself, but I prefer keeping the two separate. In this way I can replace Bind or
+the forwarding DNS without worrying about updating clients on the network.
 
 This container supports creating DNS server IPs from Docker Swarm Services.
 
@@ -19,8 +31,8 @@ Note: This image is **not** for you if you just need basic recursive DNS lookups
 docker run -d -p 53:53 -p 53:53/tcp \
     --name powerdns-recursor
     -e DNS_AUTH_ZONES=myprivatedomain.co.uk,private2.com \
-    -e DNS_AUTH_IPS=10.10.100.1;10.20.100.2 \
-    -e DNS_PIHOLE_IPS=10.30.100.3 \
+    -e DNS_AUTH_IP_ADDRESSES=10.10.100.1;10.20.100.2 \
+    -e DNS_FORWARDER_IP_ADDRESSES=10.30.100.3 \
     oakmoss/powerdns-recursor
 ```
 
@@ -36,11 +48,11 @@ services:
     environment:
       - DNS_AUTH_ZONES=myprivatedomain.co.uk,private2.com \
       - DNS_AUTH_SERVICE=pdns_auth \
-      - DNS_PIHOLE_IPS=10.30.100.3 \
+      - DNS_FORWARDER_IP_ADDRESSES=10.30.100.3 \
     deploy:
       mode: replicated
       replicas: 1
-      
+
   powerdns_auth:
     image: psitrax/powerdns:4
     networks:
@@ -55,7 +67,7 @@ services:
       replicas: 1
 
   # mysql setup omitted
-  
+
 ```
 
 ## Environment Variables
@@ -69,18 +81,18 @@ of the DNS servers to forward to.
 
 **Authoritative Server Forwarding**
 
-* `DNS_AUTH_IPS`: A `;` separated list of IP address of your desired Authoritative DNS Servers, e.g., `10.10.100.1;10.20.100.2`. This syntax also supports specifying a port if different from the default, e.g., `10.10.100.2:5300` 
+* `DNS_AUTH_IP_ADDRESSES`: A `;` separated list of IP address of your desired Authoritative DNS Servers, e.g., `10.10.100.1;10.20.100.2`. This syntax also supports specifying a port if different from the default, e.g., `10.10.100.2:5300`
 * `DNS_AUTH_SERVICE`: The name of a Docker Swarm service running in your cluster. The container will query Swarm's DNS in order to fetch all found IP addresses of containers in that service.
 
-Note: One of the DNS_AUTH_* variables must be set. `DNS_AUTH_IPS` is ignored if both are configured.
+Note: One of the `DNS_AUTH_*` variables must be set. `DNS_AUTH_IP_ADDRESSES` is ignored if both are configured.
 
 
 **Pi-Hole Recursive Forwarding**
 
-* `DNS_PIHOLE_IPS`: The IP address(es) of your Pi-Hole server to forward to. See `DNS_AUTH_IPS` for syntax.
-* `DNS_PIHOLE_SERVICE`: The name of a Docker Swarm service running Pi-Hole in your cluster.
+* `DNS_FORWARDER_IP_ADDRESSES`: The IP address(es) of your Pi-Hole server to forward to. See `DNS_AUTH_IP_ADDRESSES` for syntax.
+* `DNS_FORWARDER_SERVICE`: The name of a Docker Swarm service running Pi-Hole in your cluster.
 
-Note: One of the `DNS_PIHOLE_*` variables must be set. `DNS_PIHOLE_IPS` is ignored if both are configured.
+Note: One of the `DNS_FORWARDER_*` variables must be set. `DNS_FORWARDER_IP_ADDRESSES` is ignored if both are configured.
 
 
 ## Default PowerDNS Recursor Configuration
@@ -100,8 +112,8 @@ Other configuration can be overridden by passing in options at the CLI or using 
 docker run -d -p 53:53 -p 53:53/tcp \
     --name powerdns-recursor
     -e DNS_AUTH_ZONES=myprivatedomain.co.uk,private2.com \
-    -e DNS_AUTH_IPS=10.10.100.1;10.20.100.2 \
-    -e DNS_PIHOLE_IPS=10.30.100.3 \
+    -e DNS_AUTH_IP_ADDRESSES=10.10.100.1;10.20.100.2 \
+    -e DNS_FORWARDER_IP_ADDRESSES=10.30.100.3 \
     oakmoss/powerdns-recursor \
     --local-address=10.100.100.1  # override local-address
 ```
@@ -115,7 +127,7 @@ services:
     environment:
       - DNS_AUTH_ZONES=myprivatedomain.co.uk,private2.com \
       - DNS_AUTH_SERVICE=pdns_auth \
-      - DNS_PIHOLE_IPS=10.30.100.3 \
+      - DNS_FORWARDER_IP_ADDRESSES=10.30.100.3 \
     command: --local-address=10.100.100.1  # override local-address
     deploy:
       mode: replicated
@@ -127,6 +139,3 @@ For a full list of available options that can be passed to PowerDNS Recursor, ru
 ```
 docker run --rm tcely/powerdns-recursor --help
 ```
-
-
-
