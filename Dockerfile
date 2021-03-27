@@ -1,5 +1,5 @@
 FROM tcely/powerdns-recursor:latest
-MAINTAINER peter@peterspain.co.uk
+LABEL maintainer=peter@peterspain.co.uk
 
 ARG CONFIG=/etc/pdns-recursor/recursor.conf
 
