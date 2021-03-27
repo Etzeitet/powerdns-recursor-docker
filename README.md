@@ -2,6 +2,9 @@
 
 A powerdns-recursor docker image based on tcely/powerdns-recursor image.
 
+Note: `v2.0.0` is the latest version, but is functionally equivalent to `v1.0.6`.
+However, some Env Vars have been renamed hence the bump to `v2.0.0`.
+
 This new container is designed for acting as a DNS recursor between an authoritative
 DNS server and a forwarding or recursive DNS server. This container originally was
 intended for using Pi-Hole as the forwarding server. However, I have made it more
